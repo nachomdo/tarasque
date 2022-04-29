@@ -35,16 +35,38 @@ type MyTypeObservation struct {
 	ObservableField string `json:"observableField,omitempty"`
 }
 
+// KafkaTopics are part of the desired state fields
+type KafkaTopics struct {
+	NumPartitions     int16 `json:"numPartitions,omitempty"`
+	ReplicationFactor int8  `json:"replicationFactor,omitempty"`
+}
+
 // A MyTypeSpec defines the desired state of a MyType.
 type MyTypeSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
-	ForProvider       MyTypeParameters `json:"forProvider"`
+	xpv1.ResourceSpec    `json:",inline"`
+	Class                string                 `json:"class,omitempty"`
+	DurationMs           int64                  `json:"durationMs,omitempty"`
+	ProducerNode         string                 `json:"producerNode,omitempty"`
+	ClientNode           string                 `json:"clientNode,omitempty"`
+	BootstrapServers     string                 `json:"bootstrapServers,omitempty"`
+	TargetMessagesPerSec int32                  `json:"targetMessagesPerSec,omitempty"`
+	MaxMessages          int64                  `json:"maxMessages,omitempty"`
+	ActiveTopics         map[string]KafkaTopics `json:"activeTopics,omitempty"`
+	InactiveTopics       map[string]KafkaTopics `json:"inactiveTopics,omitempty"`
+	ProducerConf         map[string]string      `json:"producerConf,omitempty"`
+	ConsumerConf         map[string]string      `json:"consumerConf,omitempty"`
+	CommonClientConf     map[string]string      `json:"commonClientConf,omitempty"`
+	AdminClientConf      map[string]string      `json:"adminClientConf,omitempty"`
+	ForProvider          MyTypeParameters       `json:"forProvider"`
 }
 
 // A MyTypeStatus represents the observed state of a MyType.
 type MyTypeStatus struct {
 	xpv1.ResourceStatus `json:",inline"`
 	AtProvider          MyTypeObservation `json:"atProvider,omitempty"`
+	TaskStatus          string            `json:"taskStatus,omitempty"`
+	TaskId              string            `json:"taskId,omitempty"`
+	WorkerId            uint64            `json:"workerId,omitempty"`
 }
 
 // +kubebuilder:object:root=true

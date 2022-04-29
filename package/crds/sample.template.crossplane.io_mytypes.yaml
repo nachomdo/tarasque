@@ -53,6 +53,20 @@ spec:
           spec:
             description: A MyTypeSpec defines the desired state of a MyType.
             properties:
+              activeTopics:
+                additionalProperties:
+                  description: KafkaTopics are part of the desired state fields
+                  properties:
+                    numPartitions:
+                      type: integer
+                    replicationFactor:
+                      type: integer
+                  type: object
+                type: object
+              bootstrapServers:
+                type: string
+              class:
+                type: string
               deletionPolicy:
                 default: Delete
                 description: DeletionPolicy specifies what will happen to the underlying
@@ -62,6 +76,9 @@ spec:
                 - Orphan
                 - Delete
                 type: string
+              durationMs:
+                format: int64
+                type: integer
               forProvider:
                 description: MyTypeParameters are the configurable fields of a MyType.
                 properties:
@@ -70,6 +87,21 @@ spec:
                 required:
                 - configurableField
                 type: object
+              inactiveTopics:
+                additionalProperties:
+                  description: KafkaTopics are part of the desired state fields
+                  properties:
+                    numPartitions:
+                      type: integer
+                    replicationFactor:
+                      type: integer
+                  type: object
+                type: object
+              maxMessages:
+                format: int64
+                type: integer
+              producerNode:
+                type: string
               providerConfigRef:
                 default:
                   name: default
@@ -94,6 +126,9 @@ spec:
                 required:
                 - name
                 type: object
+              targetMessagesPerSec:
+                format: int32
+                type: integer
               writeConnectionSecretToRef:
                 description: WriteConnectionSecretToReference specifies the namespace
                   and name of a Secret to which any connection details for this managed

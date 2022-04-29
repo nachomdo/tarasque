@@ -18,8 +18,15 @@ package mytype
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math/rand"
+	"net/http"
+	"os"
+	"reflect"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -35,6 +42,7 @@ import (
 
 	"github.com/crossplane/provider-template/apis/sample/v1alpha1"
 	apisv1alpha1 "github.com/crossplane/provider-template/apis/v1alpha1"
+	resty "github.com/go-resty/resty/v2"
 )
 
 const (
@@ -43,14 +51,24 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errNewClient = "cannot create new Service"
+	errNewClient           = "cannot create new Service"
+	errNewTask             = "cannot create new Task"
+	defaultAgentServiceUrl = "https://tarasque-agent.tarasque.svc.cluster.local"
 )
+
+func getEnvOrDefault(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
 
 // A NoOpService does nothing.
 type NoOpService struct{}
 
 var (
-	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
+	newNoOpService  = func(_ []byte) (*resty.Client, error) { return resty.New(), nil }
+	agentServiceUrl = getEnvOrDefault("SERVICE_URL", defaultAgentServiceUrl)
 )
 
 // Setup adds a controller that reconciles MyType managed resources.
@@ -77,12 +95,24 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 		Complete(r)
 }
 
+type WorkerTaskSpec struct {
+	v1alpha1.MyTypeSpec
+	StartMs int64 `json:"startMs,omitempty"`
+}
+
+// KafkaTopics are part of the desired state fields
+type WorkerTask struct {
+	TaskId   string         `json:"taskId,omitempty"`
+	WorkerId int64          `json:"workerId,omitempty"`
+	Spec     WorkerTaskSpec `json:"spec,omitempty"`
+}
+
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
 	kube         client.Client
 	usage        resource.Tracker
-	newServiceFn func(creds []byte) (interface{}, error)
+	newServiceFn func(creds []byte) (*resty.Client, error)
 }
 
 // Connect typically produces an ExternalClient by:
@@ -124,7 +154,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service interface{}
+	service *resty.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -134,13 +164,13 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	// These fmt statements should be removed in the real implementation.
-	fmt.Printf("Observing: %+v", cr)
+	fmt.Printf("Observing: %+v \n", cr)
 
 	return managed.ExternalObservation{
 		// Return false when the external resource does not exist. This lets
 		// the managed resource reconciler know that it needs to call Create to
 		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: true,
+		ResourceExists: cr.Status.TaskId != "",
 
 		// Return false when the external resource exists, but it not up to date
 		// with the desired managed resource state. This lets the managed
@@ -159,7 +189,30 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotMyType)
 	}
 
-	fmt.Printf("Creating: %+v", cr)
+	payload := WorkerTask{Spec: WorkerTaskSpec{cr.Spec, time.Now().UnixMilli()}, WorkerId: rand.Int63(), TaskId: uuid.New().String()}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return managed.ExternalCreation{}, err
+	}
+
+	mBody := make(map[string]interface{}, reflect.ValueOf(payload).NumField())
+	if err := json.Unmarshal(body, &mBody); err != nil {
+		return managed.ExternalCreation{}, err
+	}
+	spec := mBody["spec"].(map[string]interface{})
+	delete(spec, "providerConfigRef")
+	delete(spec, "forProvider")
+	delete(spec, "deletionPolicy")
+	fmt.Printf("Creating: %+v \n", string(body))
+	resp, err := c.service.NewRequest().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetBody(mBody).Post(agentServiceUrl + "/agent/worker/create")
+
+	fmt.Printf("Response: %v \n", string(resp.Body()))
+	if resp.StatusCode() != http.StatusOK || err != nil {
+		return managed.ExternalCreation{}, err
+	}
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the

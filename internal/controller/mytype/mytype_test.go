@@ -18,13 +18,18 @@ package mytype
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
+	resty "github.com/go-resty/resty/v2"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/provider-template/apis/sample/v1alpha1"
+	"github.com/jarcoal/httpmock"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Unlike many Kubernetes projects Crossplane does not use third party testing
@@ -37,7 +42,7 @@ import (
 
 func TestObserve(t *testing.T) {
 	type fields struct {
-		service interface{}
+		service *resty.Client
 	}
 
 	type args struct {
@@ -49,6 +54,7 @@ func TestObserve(t *testing.T) {
 		o   managed.ExternalObservation
 		err error
 	}
+	client := resty.New()
 
 	cases := map[string]struct {
 		reason string
@@ -56,7 +62,40 @@ func TestObserve(t *testing.T) {
 		args   args
 		want   want
 	}{
-		// TODO: Add test cases.
+		"test": {
+			"test",
+			fields{service: client},
+			args{
+				context.TODO(),
+				&v1alpha1.MyType{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "test",
+						Name:      "newBenchmark",
+					},
+					Spec: v1alpha1.MyTypeSpec{
+						Class:            "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
+						BootstrapServers: "localhost:9092",
+						ActiveTopics: map[string]v1alpha1.KafkaTopics{
+							"myTopic": {
+								NumPartitions:     10,
+								ReplicationFactor: 3,
+							},
+						},
+						ForProvider: v1alpha1.MyTypeParameters{
+							ConfigurableField: "example",
+						},
+					},
+				},
+			},
+			want{
+				managed.ExternalObservation{
+					ResourceExists:    false,
+					ResourceUpToDate:  true,
+					ConnectionDetails: managed.ConnectionDetails{},
+				},
+				nil,
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -68,6 +107,85 @@ func TestObserve(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("\n%s\ne.Observe(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestCreate(t *testing.T) {
+	type fields struct {
+		service *resty.Client
+	}
+
+	type args struct {
+		ctx context.Context
+		mg  resource.Managed
+	}
+
+	type want struct {
+		o   managed.ExternalCreation
+		err error
+	}
+	client := resty.New()
+	httpmock.ActivateNonDefault(client.GetClient())
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("POST", agentServiceUrl+"/worker/create",
+		func(req *http.Request) (*http.Response, error) {
+			resp := httpmock.NewStringResponse(200, "OK")
+
+			return resp, nil
+		},
+	)
+	cases := map[string]struct {
+		reason string
+		fields fields
+		args   args
+		want   want
+	}{
+		"test": {
+			"test",
+			fields{service: client},
+
+			args{
+				context.TODO(),
+				&v1alpha1.MyType{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "test",
+						Name:      "newBenchmark",
+					},
+					Spec: v1alpha1.MyTypeSpec{
+						Class:            "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
+						BootstrapServers: "localhost:9092",
+						ActiveTopics: map[string]v1alpha1.KafkaTopics{
+							"myTopic": {
+								NumPartitions:     10,
+								ReplicationFactor: 3,
+							},
+						},
+						ForProvider: v1alpha1.MyTypeParameters{
+							ConfigurableField: "example",
+						},
+					},
+				},
+			},
+			want{
+				managed.ExternalCreation{
+					ConnectionDetails: managed.ConnectionDetails{},
+				},
+				nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := external{service: tc.fields.service}
+			got, err := e.Create(tc.args.ctx, tc.args.mg)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ne.Create(...): -want error, +got error:\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("\n%s\ne.Create(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}
