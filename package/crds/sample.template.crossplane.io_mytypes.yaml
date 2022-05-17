@@ -63,10 +63,24 @@ spec:
                       type: integer
                   type: object
                 type: object
+              adminClientConf:
+                additionalProperties:
+                  type: string
+                type: object
               bootstrapServers:
                 type: string
               class:
                 type: string
+              clientNode:
+                type: string
+              commonClientConf:
+                additionalProperties:
+                  type: string
+                type: object
+              consumerConf:
+                additionalProperties:
+                  type: string
+                type: object
               deletionPolicy:
                 default: Delete
                 description: DeletionPolicy specifies what will happen to the underlying
@@ -100,6 +114,10 @@ spec:
               maxMessages:
                 format: int64
                 type: integer
+              producerConf:
+                additionalProperties:
+                  type: string
+                type: object
               producerNode:
                 type: string
               providerConfigRef:
@@ -157,6 +175,35 @@ spec:
                 properties:
                   observableField:
                     type: string
+                  results:
+                    description: A MyTypeResultStats represents the benchmarking results
+                      obtained by the agent
+                    properties:
+                      averageLatencyMs:
+                        type: number
+                      p50LatencyMs:
+                        format: int64
+                        type: integer
+                      p95LatencyMs:
+                        format: int64
+                        type: integer
+                      p99LatencyMs:
+                        format: int64
+                        type: integer
+                      totalSent:
+                        format: int64
+                        type: integer
+                      transactionsCommitted:
+                        format: int64
+                        type: integer
+                    type: object
+                  taskId:
+                    type: string
+                  taskStatus:
+                    type: string
+                  workerId:
+                    format: int64
+                    type: integer
                 type: object
               conditions:
                 description: Conditions of the resource.

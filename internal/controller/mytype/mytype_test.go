@@ -18,10 +18,13 @@ package mytype
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
-	resty "github.com/go-resty/resty/v2"
+	"github.com/go-resty/resty/v2"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -42,7 +45,7 @@ import (
 
 func TestObserve(t *testing.T) {
 	type fields struct {
-		service *resty.Client
+		service *TrogdorAgentService
 	}
 
 	type args struct {
@@ -54,7 +57,7 @@ func TestObserve(t *testing.T) {
 		o   managed.ExternalObservation
 		err error
 	}
-	client := resty.New()
+	client := NewTrogdorService()
 
 	cases := map[string]struct {
 		reason string
@@ -114,7 +117,7 @@ func TestObserve(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	type fields struct {
-		service *resty.Client
+		service *TrogdorAgentService
 	}
 
 	type args struct {
@@ -126,11 +129,25 @@ func TestCreate(t *testing.T) {
 		o   managed.ExternalCreation
 		err error
 	}
-	client := resty.New()
-	httpmock.ActivateNonDefault(client.GetClient())
+
+	connDetails := managed.ConnectionDetails{}
+
+	httpClient := resty.New()
+	client := newTrogdorServiceWithRestClient(httpClient)
+	httpmock.ActivateNonDefault(httpClient.GetClient())
 	defer httpmock.DeactivateAndReset()
-	httpmock.RegisterResponder("POST", agentServiceUrl+"/worker/create",
+	httpmock.RegisterResponder("POST", agentServiceUrl+"/agent/worker/create",
 		func(req *http.Request) (*http.Response, error) {
+			body, _ := ioutil.ReadAll(req.Body)
+			wt := WorkerTask{}
+			json.Unmarshal(body, &wt)
+			fmt.Printf("%v", wt)
+
+			connDetails["taskId"] = []byte(wt.TaskId)
+			connDetails["name"] = []byte("newBenchmark")
+			connDetails["namespace"] = []byte("test")
+
+			fmt.Printf("%v", connDetails)
 			resp := httpmock.NewStringResponse(200, "OK")
 
 			return resp, nil
@@ -170,7 +187,7 @@ func TestCreate(t *testing.T) {
 			},
 			want{
 				managed.ExternalCreation{
-					ConnectionDetails: managed.ConnectionDetails{},
+					ConnectionDetails: connDetails,
 				},
 				nil,
 			},

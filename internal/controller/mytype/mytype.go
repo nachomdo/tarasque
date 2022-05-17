@@ -18,15 +18,9 @@ package mytype
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"math/rand"
-	"net/http"
-	"os"
-	"reflect"
-	"time"
+	"strconv"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -42,7 +36,6 @@ import (
 
 	"github.com/crossplane/provider-template/apis/sample/v1alpha1"
 	apisv1alpha1 "github.com/crossplane/provider-template/apis/v1alpha1"
-	resty "github.com/go-resty/resty/v2"
 )
 
 const (
@@ -51,24 +44,15 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errNewClient           = "cannot create new Service"
-	errNewTask             = "cannot create new Task"
-	defaultAgentServiceUrl = "https://tarasque-agent.tarasque.svc.cluster.local"
+	errNewClient = "cannot create new Service"
+	errNewTask   = "cannot create new Task"
 )
-
-func getEnvOrDefault(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
 
 // A NoOpService does nothing.
 type NoOpService struct{}
 
 var (
-	newNoOpService  = func(_ []byte) (*resty.Client, error) { return resty.New(), nil }
-	agentServiceUrl = getEnvOrDefault("SERVICE_URL", defaultAgentServiceUrl)
+	newNoOpService = func(_ []byte) (*TrogdorAgentService, error) { return NewTrogdorService(), nil }
 )
 
 // Setup adds a controller that reconciles MyType managed resources.
@@ -112,7 +96,7 @@ type WorkerTask struct {
 type connector struct {
 	kube         client.Client
 	usage        resource.Tracker
-	newServiceFn func(creds []byte) (*resty.Client, error)
+	newServiceFn func(creds []byte) (*TrogdorAgentService, error)
 }
 
 // Connect typically produces an ExternalClient by:
@@ -154,7 +138,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service *resty.Client
+	service *TrogdorAgentService
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -170,12 +154,12 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		// Return false when the external resource does not exist. This lets
 		// the managed resource reconciler know that it needs to call Create to
 		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: cr.Status.TaskId != "",
+		ResourceExists: cr.Status.AtProvider.TaskId != "",
 
 		// Return false when the external resource exists, but it not up to date
 		// with the desired managed resource state. This lets the managed
 		// resource reconciler know that it needs to call Update.
-		ResourceUpToDate: true,
+		ResourceUpToDate: cr.Status.AtProvider.TaskStatus == "Done",
 
 		// Return any details that may be required to connect to the external
 		// resource. These will be stored as the connection secret.
@@ -189,35 +173,24 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotMyType)
 	}
 
-	payload := WorkerTask{Spec: WorkerTaskSpec{cr.Spec, time.Now().UnixMilli()}, WorkerId: rand.Int63(), TaskId: uuid.New().String()}
-	body, err := json.Marshal(payload)
+	workerTask, err := c.service.CreateWorkerTask(cr.Spec)
+
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
-
-	mBody := make(map[string]interface{}, reflect.ValueOf(payload).NumField())
-	if err := json.Unmarshal(body, &mBody); err != nil {
-		return managed.ExternalCreation{}, err
-	}
-	spec := mBody["spec"].(map[string]interface{})
-	delete(spec, "providerConfigRef")
-	delete(spec, "forProvider")
-	delete(spec, "deletionPolicy")
-	fmt.Printf("Creating: %+v \n", string(body))
-	resp, err := c.service.NewRequest().
-		SetHeader("Accept", "application/json").
-		SetHeader("Content-Type", "application/json").
-		SetBody(mBody).Post(agentServiceUrl + "/agent/worker/create")
-
-	fmt.Printf("Response: %v \n", string(resp.Body()))
-	if resp.StatusCode() != http.StatusOK || err != nil {
-		return managed.ExternalCreation{}, err
-	}
+	cr.Status.AtProvider.ObservableField = "test"
+	cr.Status.AtProvider.TaskStatus = "CREATED"
+	cr.Status.AtProvider.TaskId = workerTask.TaskId
+	cr.Status.AtProvider.WorkerId = workerTask.WorkerId
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
 		// external resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
+		ConnectionDetails: managed.ConnectionDetails{
+			"taskId":    []byte(workerTask.TaskId),
+			"name":      []byte(cr.Name),
+			"namespace": []byte(cr.Namespace),
+		},
 	}, nil
 }
 
@@ -226,8 +199,15 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotMyType)
 	}
-
 	fmt.Printf("Updating: %+v", cr)
+
+	statusResponse, err := c.service.CollectWorkerTaskResult()
+	if err != nil {
+		return managed.ExternalUpdate{}, err
+	}
+	workerId := strconv.FormatInt(cr.Status.AtProvider.WorkerId, 10)
+	cr.Status.AtProvider.TaskStatus = statusResponse.Workers[workerId].State
+	cr.Status.AtProvider.Results = statusResponse.Workers[workerId].Status
 
 	return managed.ExternalUpdate{
 		// Optionally return any details that may be required to connect to the

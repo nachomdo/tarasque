@@ -32,7 +32,11 @@ type MyTypeParameters struct {
 
 // MyTypeObservation are the observable fields of a MyType.
 type MyTypeObservation struct {
-	ObservableField string `json:"observableField,omitempty"`
+	ObservableField string            `json:"observableField,omitempty"`
+	TaskStatus      string            `json:"taskStatus,omitempty"`
+	TaskId          string            `json:"taskId,omitempty"`
+	WorkerId        int64             `json:"workerId,omitempty"`
+	Results         MyTypeResultStats `json:"results,omitempty"`
 }
 
 // KafkaTopics are part of the desired state fields
@@ -60,13 +64,20 @@ type MyTypeSpec struct {
 	ForProvider          MyTypeParameters       `json:"forProvider"`
 }
 
+// A MyTypeResultStats represents the benchmarking results obtained by the agent
+type MyTypeResultStats struct {
+	TotalSent             int64   `json:"totalSent,omitempty"`
+	AverageLatencyMs      float64 `json:"averageLatencyMs,omitempty"`
+	P50LatencyMs          int64   `json:"p50LatencyMs,omitempty"`
+	P95LatencyMs          int64   `json:"p95LatencyMs,omitempty"`
+	P99LatencyMs          int64   `json:"p99LatencyMs,omitempty"`
+	TransactionsCommitted int64   `json:"transactionsCommitted,omitempty"`
+}
+
 // A MyTypeStatus represents the observed state of a MyType.
 type MyTypeStatus struct {
 	xpv1.ResourceStatus `json:",inline"`
 	AtProvider          MyTypeObservation `json:"atProvider,omitempty"`
-	TaskStatus          string            `json:"taskStatus,omitempty"`
-	TaskId              string            `json:"taskId,omitempty"`
-	WorkerId            uint64            `json:"workerId,omitempty"`
 }
 
 // +kubebuilder:object:root=true
