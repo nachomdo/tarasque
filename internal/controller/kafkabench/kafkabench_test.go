@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mytype
+package kafkabench
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/provider-template/apis/sample/v1alpha1"
+	"github.com/crossplane/provider-template/apis/tarasque/v1alpha1"
 	"github.com/jarcoal/httpmock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -70,12 +70,12 @@ func TestObserve(t *testing.T) {
 			fields{service: client},
 			args{
 				context.TODO(),
-				&v1alpha1.MyType{
+				&v1alpha1.KafkaBench{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "test",
 						Name:      "newBenchmark",
 					},
-					Spec: v1alpha1.MyTypeSpec{
+					Spec: v1alpha1.KafkaBenchSpec{
 						Class:            "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
 						BootstrapServers: "localhost:9092",
 						ActiveTopics: map[string]v1alpha1.KafkaTopics{
@@ -84,7 +84,7 @@ func TestObserve(t *testing.T) {
 								ReplicationFactor: 3,
 							},
 						},
-						ForProvider: v1alpha1.MyTypeParameters{
+						ForProvider: v1alpha1.KafkaBenchParameters{
 							ConfigurableField: "example",
 						},
 					},
@@ -165,12 +165,12 @@ func TestCreate(t *testing.T) {
 
 			args{
 				context.TODO(),
-				&v1alpha1.MyType{
+				&v1alpha1.KafkaBench{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "test",
 						Name:      "newBenchmark",
 					},
-					Spec: v1alpha1.MyTypeSpec{
+					Spec: v1alpha1.KafkaBenchSpec{
 						Class:            "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
 						BootstrapServers: "localhost:9092",
 						ActiveTopics: map[string]v1alpha1.KafkaTopics{
@@ -179,7 +179,7 @@ func TestCreate(t *testing.T) {
 								ReplicationFactor: 3,
 							},
 						},
-						ForProvider: v1alpha1.MyTypeParameters{
+						ForProvider: v1alpha1.KafkaBenchParameters{
 							ConfigurableField: "example",
 						},
 					},
@@ -281,12 +281,12 @@ func TestUpdate(t *testing.T) {
 
 			args{
 				context.TODO(),
-				&v1alpha1.MyType{
+				&v1alpha1.KafkaBench{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "test",
 						Name:      "newBenchmark",
 					},
-					Spec: v1alpha1.MyTypeSpec{
+					Spec: v1alpha1.KafkaBenchSpec{
 						Class:            "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
 						BootstrapServers: "localhost:9092",
 						ActiveTopics: map[string]v1alpha1.KafkaTopics{
@@ -295,12 +295,12 @@ func TestUpdate(t *testing.T) {
 								ReplicationFactor: 3,
 							},
 						},
-						ForProvider: v1alpha1.MyTypeParameters{
+						ForProvider: v1alpha1.KafkaBenchParameters{
 							ConfigurableField: "example",
 						},
 					},
-					Status: v1alpha1.MyTypeStatus{
-						AtProvider: v1alpha1.MyTypeObservation{
+					Status: v1alpha1.KafkaBenchStatus{
+						AtProvider: v1alpha1.KafkaBenchObservation{
 							WorkerId:   9999,
 							TaskId:     "3",
 							TaskStatus: "CREATED",

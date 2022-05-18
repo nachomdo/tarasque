@@ -19,58 +19,58 @@ package v1alpha1
 
 import xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-// GetCondition of this MyType.
-func (mg *MyType) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+// GetCondition of this KafkaBench.
+func (mg *KafkaBench) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return mg.Status.GetCondition(ct)
 }
 
-// GetDeletionPolicy of this MyType.
-func (mg *MyType) GetDeletionPolicy() xpv1.DeletionPolicy {
+// GetDeletionPolicy of this KafkaBench.
+func (mg *KafkaBench) GetDeletionPolicy() xpv1.DeletionPolicy {
 	return mg.Spec.DeletionPolicy
 }
 
-// GetProviderConfigReference of this MyType.
-func (mg *MyType) GetProviderConfigReference() *xpv1.Reference {
+// GetProviderConfigReference of this KafkaBench.
+func (mg *KafkaBench) GetProviderConfigReference() *xpv1.Reference {
 	return mg.Spec.ProviderConfigReference
 }
 
 /*
-GetProviderReference of this MyType.
+GetProviderReference of this KafkaBench.
 Deprecated: Use GetProviderConfigReference.
 */
-func (mg *MyType) GetProviderReference() *xpv1.Reference {
+func (mg *KafkaBench) GetProviderReference() *xpv1.Reference {
 	return mg.Spec.ProviderReference
 }
 
-// GetWriteConnectionSecretToReference of this MyType.
-func (mg *MyType) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
+// GetWriteConnectionSecretToReference of this KafkaBench.
+func (mg *KafkaBench) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
 	return mg.Spec.WriteConnectionSecretToReference
 }
 
-// SetConditions of this MyType.
-func (mg *MyType) SetConditions(c ...xpv1.Condition) {
+// SetConditions of this KafkaBench.
+func (mg *KafkaBench) SetConditions(c ...xpv1.Condition) {
 	mg.Status.SetConditions(c...)
 }
 
-// SetDeletionPolicy of this MyType.
-func (mg *MyType) SetDeletionPolicy(r xpv1.DeletionPolicy) {
+// SetDeletionPolicy of this KafkaBench.
+func (mg *KafkaBench) SetDeletionPolicy(r xpv1.DeletionPolicy) {
 	mg.Spec.DeletionPolicy = r
 }
 
-// SetProviderConfigReference of this MyType.
-func (mg *MyType) SetProviderConfigReference(r *xpv1.Reference) {
+// SetProviderConfigReference of this KafkaBench.
+func (mg *KafkaBench) SetProviderConfigReference(r *xpv1.Reference) {
 	mg.Spec.ProviderConfigReference = r
 }
 
 /*
-SetProviderReference of this MyType.
+SetProviderReference of this KafkaBench.
 Deprecated: Use SetProviderConfigReference.
 */
-func (mg *MyType) SetProviderReference(r *xpv1.Reference) {
+func (mg *KafkaBench) SetProviderReference(r *xpv1.Reference) {
 	mg.Spec.ProviderReference = r
 }
 
-// SetWriteConnectionSecretToReference of this MyType.
-func (mg *MyType) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
+// SetWriteConnectionSecretToReference of this KafkaBench.
+func (mg *KafkaBench) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
 	mg.Spec.WriteConnectionSecretToReference = r
 }

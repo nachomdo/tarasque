@@ -25,18 +25,18 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// MyTypeParameters are the configurable fields of a MyType.
-type MyTypeParameters struct {
+// KafkaBenchParameters are the configurable fields of a KafkaBench.
+type KafkaBenchParameters struct {
 	ConfigurableField string `json:"configurableField"`
 }
 
-// MyTypeObservation are the observable fields of a MyType.
-type MyTypeObservation struct {
-	ObservableField string            `json:"observableField,omitempty"`
-	TaskStatus      string            `json:"taskStatus,omitempty"`
-	TaskId          string            `json:"taskId,omitempty"`
-	WorkerId        int64             `json:"workerId,omitempty"`
-	Results         MyTypeResultStats `json:"results,omitempty"`
+// KafkaBenchObservation are the observable fields of a KafkaBench.
+type KafkaBenchObservation struct {
+	ObservableField string                `json:"observableField,omitempty"`
+	TaskStatus      string                `json:"taskStatus,omitempty"`
+	TaskId          string                `json:"taskId,omitempty"`
+	WorkerId        int64                 `json:"workerId,omitempty"`
+	Results         KafkaBenchResultStats `json:"results,omitempty"`
 }
 
 // KafkaTopics are part of the desired state fields
@@ -45,8 +45,8 @@ type KafkaTopics struct {
 	ReplicationFactor int8  `json:"replicationFactor,omitempty"`
 }
 
-// A MyTypeSpec defines the desired state of a MyType.
-type MyTypeSpec struct {
+// A KafkaBenchSpec defines the desired state of a KafkaBench.
+type KafkaBenchSpec struct {
 	xpv1.ResourceSpec    `json:",inline"`
 	Class                string                 `json:"class,omitempty"`
 	DurationMs           int64                  `json:"durationMs,omitempty"`
@@ -61,11 +61,11 @@ type MyTypeSpec struct {
 	ConsumerConf         map[string]string      `json:"consumerConf,omitempty"`
 	CommonClientConf     map[string]string      `json:"commonClientConf,omitempty"`
 	AdminClientConf      map[string]string      `json:"adminClientConf,omitempty"`
-	ForProvider          MyTypeParameters       `json:"forProvider"`
+	ForProvider          KafkaBenchParameters   `json:"forProvider"`
 }
 
-// A MyTypeResultStats represents the benchmarking results obtained by the agent
-type MyTypeResultStats struct {
+// A KafkaBenchResultStats represents the benchmarking results obtained by the agent
+type KafkaBenchResultStats struct {
 	TotalSent             int64   `json:"totalSent,omitempty"`
 	AverageLatencyMs      float64 `json:"averageLatencyMs,omitempty"`
 	P50LatencyMs          int64   `json:"p50LatencyMs,omitempty"`
@@ -74,46 +74,46 @@ type MyTypeResultStats struct {
 	TransactionsCommitted int64   `json:"transactionsCommitted,omitempty"`
 }
 
-// A MyTypeStatus represents the observed state of a MyType.
-type MyTypeStatus struct {
+// A KafkaBenchStatus represents the observed state of a KafkaBench.
+type KafkaBenchStatus struct {
 	xpv1.ResourceStatus `json:",inline"`
-	AtProvider          MyTypeObservation `json:"atProvider,omitempty"`
+	AtProvider          KafkaBenchObservation `json:"atProvider,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// A MyType is an example API type.
+// A KafkaBench is an tarasque API type.
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
 // +kubebuilder:printcolumn:name="EXTERNAL-NAME",type="string",JSONPath=".metadata.annotations.crossplane\\.io/external-name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,template}
-type MyType struct {
+type KafkaBench struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MyTypeSpec   `json:"spec"`
-	Status MyTypeStatus `json:"status,omitempty"`
+	Spec   KafkaBenchSpec   `json:"spec"`
+	Status KafkaBenchStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// MyTypeList contains a list of MyType
-type MyTypeList struct {
+// KafkaBenchList contains a list of KafkaBench
+type KafkaBenchList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []MyType `json:"items"`
+	Items           []KafkaBench `json:"items"`
 }
 
-// MyType type metadata.
+// KafkaBench type metadata.
 var (
-	MyTypeKind             = reflect.TypeOf(MyType{}).Name()
-	MyTypeGroupKind        = schema.GroupKind{Group: Group, Kind: MyTypeKind}.String()
-	MyTypeKindAPIVersion   = MyTypeKind + "." + SchemeGroupVersion.String()
-	MyTypeGroupVersionKind = SchemeGroupVersion.WithKind(MyTypeKind)
+	KafkaBenchKind             = reflect.TypeOf(KafkaBench{}).Name()
+	KafkaBenchGroupKind        = schema.GroupKind{Group: Group, Kind: KafkaBenchKind}.String()
+	KafkaBenchKindAPIVersion   = KafkaBenchKind + "." + SchemeGroupVersion.String()
+	KafkaBenchGroupVersionKind = SchemeGroupVersion.WithKind(KafkaBenchKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&MyType{}, &MyTypeList{})
+	SchemeBuilder.Register(&KafkaBench{}, &KafkaBenchList{})
 }

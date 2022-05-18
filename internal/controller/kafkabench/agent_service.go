@@ -1,4 +1,4 @@
-package mytype
+package kafkabench
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/crossplane/provider-template/apis/sample/v1alpha1"
+	"github.com/crossplane/provider-template/apis/tarasque/v1alpha1"
 	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
 )
@@ -82,7 +82,7 @@ func newTrogdorServiceWithRestClient(httpClient *resty.Client) *TrogdorAgentServ
 	}
 }
 
-func (tas *TrogdorAgentService) CreateWorkerTask(spec v1alpha1.MyTypeSpec) (*WorkerTask, error) {
+func (tas *TrogdorAgentService) CreateWorkerTask(spec v1alpha1.KafkaBenchSpec) (*WorkerTask, error) {
 	payload := WorkerTask{Spec: WorkerTaskSpec{spec, time.Now().UnixMilli()}, WorkerId: rand.Int63(), TaskId: uuid.New().String()}
 
 	body, err := sanitizeWorkerTask(&payload)

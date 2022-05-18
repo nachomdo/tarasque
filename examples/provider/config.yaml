@@ -6,7 +6,7 @@ type: Opaque
 data:
   credentials: dGVzdAo=
 ---
-apiVersion: template.crossplane.io/v1alpha1
+apiVersion: tarasque.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: example
@@ -17,4 +17,3 @@ spec:
       namespace: tarasque
       name: example-provider-secret
       key: credentials
----
