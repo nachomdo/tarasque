@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -159,7 +160,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		// Return false when the external resource exists, but it not up to date
 		// with the desired managed resource state. This lets the managed
 		// resource reconciler know that it needs to call Update.
-		ResourceUpToDate: cr.Status.AtProvider.TaskStatus == "Done",
+		ResourceUpToDate: cr.Status.AtProvider.TaskStatus == "DONE",
 
 		// Return any details that may be required to connect to the external
 		// resource. These will be stored as the connection secret.
@@ -199,16 +200,26 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotMyType)
 	}
-	fmt.Printf("Updating: %+v", cr)
+	fmt.Printf("Updating: %+v \n", cr)
 
-	statusResponse, err := c.service.CollectWorkerTaskResult()
+	workerId := strconv.FormatInt(cr.Status.AtProvider.WorkerId, 10)
+	statusResponse, err := c.service.CollectWorkerTaskResult(workerId)
 	if err != nil {
 		return managed.ExternalUpdate{}, err
 	}
-	workerId := strconv.FormatInt(cr.Status.AtProvider.WorkerId, 10)
-	cr.Status.AtProvider.TaskStatus = statusResponse.Workers[workerId].State
-	cr.Status.AtProvider.Results = statusResponse.Workers[workerId].Status
 
+	cr.Status.AtProvider.TaskStatus = statusResponse.State
+	// status could be a string like "creating topics..."
+	if _, ok := statusResponse.Status.(map[string]interface{}); !ok {
+		fmt.Printf("Tasks running but waiting for a condition: %v \n", statusResponse.Status)
+		return managed.ExternalUpdate{}, nil
+	}
+
+	if err := mapstructure.Decode(statusResponse.Status, &cr.Status.AtProvider.Results); err != nil {
+		return managed.ExternalUpdate{}, err
+	}
+
+	fmt.Printf("Got from collect %v for workerId %s\n", statusResponse, workerId)
 	return managed.ExternalUpdate{
 		// Optionally return any details that may be required to connect to the
 		// external resource. These will be stored as the connection secret.

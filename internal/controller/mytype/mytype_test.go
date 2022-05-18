@@ -93,7 +93,7 @@ func TestObserve(t *testing.T) {
 			want{
 				managed.ExternalObservation{
 					ResourceExists:    false,
-					ResourceUpToDate:  true,
+					ResourceUpToDate:  false,
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				nil,
@@ -203,6 +203,129 @@ func TestCreate(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("\n%s\ne.Create(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	type fields struct {
+		service *TrogdorAgentService
+	}
+
+	type args struct {
+		ctx context.Context
+		mg  resource.Managed
+	}
+
+	type want struct {
+		o   managed.ExternalUpdate
+		err error
+	}
+
+	connDetails := managed.ConnectionDetails{}
+
+	httpClient := resty.New()
+	client := newTrogdorServiceWithRestClient(httpClient)
+	httpmock.ActivateNonDefault(httpClient.GetClient())
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("GET", agentServiceUrl+"/agent/status",
+		func(req *http.Request) (*http.Response, error) {
+			statusResponse := AgentStatusResponse{
+				ServerStartMs: 1000,
+				Workers: map[string]AgentStatusWorkers{
+					"1234": {
+						State:     "DONE",
+						TaskId:    "1",
+						StartedMs: 1649460862398,
+						DoneMs:    1649460862431,
+						Status:    nil,
+						Error:     "worker expired",
+					},
+					"1111": {
+						State:     "DONE",
+						TaskId:    "2",
+						StartedMs: 1649460862398,
+						DoneMs:    1649460862431,
+						Status:    "Creating 5 topic(s)",
+						Error:     "Unable to create topic(s): mytopic1, mytopic2, mytopic3, mytopic4, mytopic5after 3 attempt(s)",
+					},
+					"9999": {
+						State:     "DONE",
+						TaskId:    "3",
+						StartedMs: 1649460862398,
+						DoneMs:    1649460862431,
+						Status: map[string]interface{}{
+							"totalSent":             2497001,
+							"averageLatencyMs":      350.56488,
+							"p50LatencyMs":          16,
+							"p95LatencyMs":          72,
+							"p99LatencyMs":          10000,
+							"transactionsCommitted": 0,
+						},
+					},
+				},
+			}
+			return httpmock.NewJsonResponse(200, statusResponse)
+		},
+	)
+	cases := map[string]struct {
+		reason string
+		fields fields
+		args   args
+		want   want
+	}{
+		"test": {
+			"test",
+			fields{service: client},
+
+			args{
+				context.TODO(),
+				&v1alpha1.MyType{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "test",
+						Name:      "newBenchmark",
+					},
+					Spec: v1alpha1.MyTypeSpec{
+						Class:            "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
+						BootstrapServers: "localhost:9092",
+						ActiveTopics: map[string]v1alpha1.KafkaTopics{
+							"myTopic": {
+								NumPartitions:     10,
+								ReplicationFactor: 3,
+							},
+						},
+						ForProvider: v1alpha1.MyTypeParameters{
+							ConfigurableField: "example",
+						},
+					},
+					Status: v1alpha1.MyTypeStatus{
+						AtProvider: v1alpha1.MyTypeObservation{
+							WorkerId:   9999,
+							TaskId:     "3",
+							TaskStatus: "CREATED",
+						},
+					},
+				},
+			},
+			want{
+				managed.ExternalUpdate{
+					ConnectionDetails: connDetails,
+				},
+				nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := external{service: tc.fields.service}
+			got, err := e.Update(tc.args.ctx, tc.args.mg)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ne.Update(...): -want error, +got error:\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("\n%s\ne.Update(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}

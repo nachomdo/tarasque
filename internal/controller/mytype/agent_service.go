@@ -2,6 +2,7 @@ package mytype
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -45,7 +46,7 @@ func sanitizeWorkerTask(wt *WorkerTask) (map[string]interface{}, error) {
 	for _, field := range sanitizeFields {
 		delete(wtSpec, field)
 	}
-
+	wtMap["workerId"] = wt.WorkerId
 	return wtMap, nil
 }
 
@@ -55,11 +56,12 @@ type TrogdorAgentService struct {
 }
 
 type AgentStatusWorkers struct {
-	State     string                     `json:"state,omitempty"`
-	TaskId    string                     `json:"taskId,omitempty"`
-	StartedMs int64                      `json:"startedMs,omitempty"`
-	DoneMs    int64                      `json:"doneMs,omitempty"`
-	Status    v1alpha1.MyTypeResultStats `json:"status,omitempty"`
+	State     string      `json:"state,omitempty"`
+	TaskId    string      `json:"taskId,omitempty"`
+	StartedMs int64       `json:"startedMs,omitempty"`
+	DoneMs    int64       `json:"doneMs,omitempty"`
+	Status    interface{} `json:"status,omitempty"`
+	Error     string      `json:"error,omitempty"`
 }
 
 type AgentStatusResponse struct {
@@ -100,12 +102,10 @@ func (tas *TrogdorAgentService) CreateWorkerTask(spec v1alpha1.MyTypeSpec) (*Wor
 	return &payload, nil
 }
 
-func (tas *TrogdorAgentService) CollectWorkerTaskResult() (*AgentStatusResponse, error) {
+func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerId string) (*AgentStatusWorkers, error) {
 	resp, err := tas.client.NewRequest().
 		SetHeader("Accept", "application/json").
 		Get(agentServiceUrl + "/agent/status")
-
-	fmt.Printf("Worker tasks results %v", string(resp.Body()))
 
 	if resp.StatusCode() != http.StatusOK || err != nil {
 		return nil, err
@@ -115,8 +115,12 @@ func (tas *TrogdorAgentService) CollectWorkerTaskResult() (*AgentStatusResponse,
 		return nil, err
 	}
 
-	return &agentStatusResponse, nil
+	workerStatus := agentStatusResponse.Workers[workerId]
+	if workerStatus.Error != "" {
+		return nil, errors.New(workerStatus.Error)
+	}
 
+	return &workerStatus, nil
 }
 
 func (tas *TrogdorAgentService) DeleteWorkerTask(workerId int64) {
