@@ -1,0 +1,18 @@
+apiVersion: tarasque.crossplane.io/v1alpha1
+kind: KafkaBench
+metadata:
+  name: consumer-bench
+spec:
+  class: org.apache.kafka.trogdor.workload.ConsumeBenchSpec
+  durationMs: 10000000
+  consumerNode: node0
+  consumerGroup: cg
+  bootstrapServers: kafka.tarasque.svc.cluster.local:9092
+  maxMessages: 1500
+  activeTopics:
+    test[1-5]:
+      numPartitions: 10
+      replicationFactor: 3
+  providerConfigRef:
+    name: example
+

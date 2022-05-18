@@ -46,6 +46,16 @@ func sanitizeWorkerTask(wt *WorkerTask) (map[string]interface{}, error) {
 	for _, field := range sanitizeFields {
 		delete(wtSpec, field)
 	}
+
+	if wt.Spec.Class == consumerWorkload {
+		keys := make([]string, 0, len(wt.Spec.ActiveTopics))
+		for k, _ := range wt.Spec.ActiveTopics {
+			if k != "" {
+				keys = append(keys, k)
+			}
+		}
+		wtSpec["activeTopics"] = keys
+	}
 	wtMap["workerId"] = wt.WorkerId
 	return wtMap, nil
 }
@@ -123,6 +133,14 @@ func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerId string) (*Agent
 	return &workerStatus, nil
 }
 
-func (tas *TrogdorAgentService) DeleteWorkerTask(workerId int64) {
+func (tas *TrogdorAgentService) DeleteWorkerTask(workerId string) error {
+	resp, err := tas.client.NewRequest().
+		SetHeader("Accept", "application/json").
+		Delete(fmt.Sprintf("%s/agent/worker?workerId=%s", agentServiceUrl, workerId))
 
+	if resp.StatusCode() != http.StatusOK || err != nil {
+		return err
+	}
+
+	return nil
 }

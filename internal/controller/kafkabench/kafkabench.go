@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,10 +41,13 @@ import (
 )
 
 const (
-	errNotKafkaBench = "managed resource is not a KafkaBench custom resource"
-	errTrackPCUsage  = "cannot track ProviderConfig usage"
-	errGetPC         = "cannot get ProviderConfig"
-	errGetCreds      = "cannot get credentials"
+	roundTripWorkload = "org.apache.kafka.trogdor.workload.RoundTripWorkloadSpec"
+	producerWorkload  = "org.apache.kafka.trogdor.workload.ProduceBenchSpec"
+	consumerWorkload  = "org.apache.kafka.trogdor.workload.ConsumeBenchSpec"
+	errNotKafkaBench  = "managed resource is not a KafkaBench custom resource"
+	errTrackPCUsage   = "cannot track ProviderConfig usage"
+	errGetPC          = "cannot get ProviderConfig"
+	errGetCreds       = "cannot get credentials"
 
 	errNewClient = "cannot create new Service"
 	errNewTask   = "cannot create new Task"
@@ -173,13 +177,12 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotKafkaBench)
 	}
+	cr.SetConditions(xpv1.Creating())
 
 	workerTask, err := c.service.CreateWorkerTask(cr.Spec)
-
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
-	cr.Status.AtProvider.ObservableField = "test"
 	cr.Status.AtProvider.TaskStatus = "CREATED"
 	cr.Status.AtProvider.TaskId = workerTask.TaskId
 	cr.Status.AtProvider.WorkerId = workerTask.WorkerId
@@ -214,12 +217,22 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		fmt.Printf("Tasks running but waiting for a condition: %v \n", statusResponse.Status)
 		return managed.ExternalUpdate{}, nil
 	}
-
-	if err := mapstructure.Decode(statusResponse.Status, &cr.Status.AtProvider.Results); err != nil {
-		return managed.ExternalUpdate{}, err
+	switch cr.Spec.Class {
+	case producerWorkload:
+		if err := mapstructure.Decode(statusResponse.Status, &cr.Status.AtProvider.ProducerStats); err != nil {
+			return managed.ExternalUpdate{}, err
+		}
+	case roundTripWorkload:
+		if err := mapstructure.Decode(statusResponse.Status, &cr.Status.AtProvider.RoundTripStats); err != nil {
+			return managed.ExternalUpdate{}, err
+		}
+	case consumerWorkload:
+		if err := mapstructure.Decode(statusResponse.Status, &cr.Status.AtProvider.ConsumerStats); err != nil {
+			return managed.ExternalUpdate{}, err
+		}
 	}
-
 	fmt.Printf("Got from collect %v for workerId %s\n", statusResponse, workerId)
+	cr.SetConditions(xpv1.Available())
 	return managed.ExternalUpdate{
 		// Optionally return any details that may be required to connect to the
 		// external resource. These will be stored as the connection secret.
@@ -234,6 +247,12 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	}
 
 	fmt.Printf("Deleting: %+v", cr)
+	cr.SetConditions(xpv1.Deleting())
+	workerId := strconv.FormatInt(cr.Status.AtProvider.WorkerId, 10)
+	if err := c.service.DeleteWorkerTask(workerId); err != nil {
+		return err
+	}
 
+	cr.Status.AtProvider.TaskId = ""
 	return nil
 }

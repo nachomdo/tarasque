@@ -1,0 +1,18 @@
+apiVersion: tarasque.crossplane.io/v1alpha1
+kind: KafkaBench
+metadata:
+  name: producer-bench
+spec:
+  class: org.apache.kafka.trogdor.workload.ProduceBenchSpec
+  durationMs: 10000000
+  producerNode: node0
+  bootstrapServers: kafka.tarasque.svc.cluster.local:9092
+  targetMessagesPerSec: 10000
+  maxMessages: 150000
+  activeTopics:
+    test[1-5]:
+      numPartitions: 10
+      replicationFactor: 3
+  providerConfigRef:
+    name: example
+

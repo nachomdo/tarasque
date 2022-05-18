@@ -84,9 +84,6 @@ func TestObserve(t *testing.T) {
 								ReplicationFactor: 3,
 							},
 						},
-						ForProvider: v1alpha1.KafkaBenchParameters{
-							ConfigurableField: "example",
-						},
 					},
 				},
 			},
@@ -179,9 +176,6 @@ func TestCreate(t *testing.T) {
 								ReplicationFactor: 3,
 							},
 						},
-						ForProvider: v1alpha1.KafkaBenchParameters{
-							ConfigurableField: "example",
-						},
 					},
 				},
 			},
@@ -264,6 +258,28 @@ func TestUpdate(t *testing.T) {
 							"transactionsCommitted": 0,
 						},
 					},
+					"2222": {
+						State:     "DONE",
+						TaskId:    "4",
+						StartedMs: 1649460862398,
+						DoneMs:    1649460862431,
+						Status: map[string]interface{}{
+							"consumer.aea227a6-b614-472d-a829-f2694766c32c-0": map[string]interface{}{
+								"assignedPartitions": []string{
+									"test3-8",
+									"test1-6",
+									"test4-8",
+								},
+								"totalMessagesReceived":   1500,
+								"totalBytesReceived":      774000,
+								"averageMessageSizeBytes": 516,
+								"averageLatencyMs":        2036.3334,
+								"p50LatencyMs":            1,
+								"p95LatencyMs":            6108,
+								"p99LatencyMs":            6108,
+							},
+						},
+					},
 				},
 			}
 			return httpmock.NewJsonResponse(200, statusResponse)
@@ -275,8 +291,8 @@ func TestUpdate(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"test": {
-			"test",
+		"producerBench": {
+			"producerBenchTest",
 			fields{service: client},
 
 			args{
@@ -287,7 +303,7 @@ func TestUpdate(t *testing.T) {
 						Name:      "newBenchmark",
 					},
 					Spec: v1alpha1.KafkaBenchSpec{
-						Class:            "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
+						Class:            producerWorkload,
 						BootstrapServers: "localhost:9092",
 						ActiveTopics: map[string]v1alpha1.KafkaTopics{
 							"myTopic": {
@@ -295,14 +311,47 @@ func TestUpdate(t *testing.T) {
 								ReplicationFactor: 3,
 							},
 						},
-						ForProvider: v1alpha1.KafkaBenchParameters{
-							ConfigurableField: "example",
-						},
 					},
 					Status: v1alpha1.KafkaBenchStatus{
 						AtProvider: v1alpha1.KafkaBenchObservation{
 							WorkerId:   9999,
 							TaskId:     "3",
+							TaskStatus: "CREATED",
+						},
+					},
+				},
+			},
+			want{
+				managed.ExternalUpdate{
+					ConnectionDetails: connDetails,
+				},
+				nil,
+			},
+		},
+		"consumerBenchTest": {
+			"consumerBenchTest",
+			fields{service: client},
+			args{
+				context.TODO(),
+				&v1alpha1.KafkaBench{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "test",
+						Name:      "newBenchmark",
+					},
+					Spec: v1alpha1.KafkaBenchSpec{
+						Class:            consumerWorkload,
+						BootstrapServers: "localhost:9092",
+						ActiveTopics: map[string]v1alpha1.KafkaTopics{
+							"myTopic": {
+								NumPartitions:     10,
+								ReplicationFactor: 3,
+							},
+						},
+					},
+					Status: v1alpha1.KafkaBenchStatus{
+						AtProvider: v1alpha1.KafkaBenchObservation{
+							WorkerId:   2222,
+							TaskId:     "4",
 							TaskStatus: "CREATED",
 						},
 					},

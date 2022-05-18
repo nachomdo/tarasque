@@ -81,6 +81,10 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              consumerGroup:
+                type: string
+              consumerNode:
+                type: string
               deletionPolicy:
                 default: Delete
                 description: DeletionPolicy specifies what will happen to the underlying
@@ -93,15 +97,6 @@ spec:
               durationMs:
                 format: int64
                 type: integer
-              forProvider:
-                description: KafkaBenchParameters are the configurable fields of a
-                  KafkaBench.
-                properties:
-                  configurableField:
-                    type: string
-                required:
-                - configurableField
-                type: object
               inactiveTopics:
                 additionalProperties:
                   description: KafkaTopics are part of the desired state fields
@@ -148,6 +143,9 @@ spec:
               targetMessagesPerSec:
                 format: int32
                 type: integer
+              threadsPerWorker:
+                format: int32
+                type: integer
               writeConnectionSecretToRef:
                 description: WriteConnectionSecretToReference specifies the namespace
                   and name of a Secret to which any connection details for this managed
@@ -165,8 +163,6 @@ spec:
                 - name
                 - namespace
                 type: object
-            required:
-            - forProvider
             type: object
           status:
             description: A KafkaBenchStatus represents the observed state of a KafkaBench.
@@ -175,10 +171,43 @@ spec:
                 description: KafkaBenchObservation are the observable fields of a
                   KafkaBench.
                 properties:
-                  observableField:
-                    type: string
-                  results:
-                    description: A KafkaBenchResultStats represents the benchmarking
+                  consumerStats:
+                    additionalProperties:
+                      description: A ConsumerBenchResultStats represents the benchmarking
+                        results obtained by the agent
+                      properties:
+                        assignedPartitions:
+                          items:
+                            type: string
+                          type: array
+                        averageLatencyMs:
+                          type: number
+                        averageMessageSizeBytes:
+                          format: int64
+                          type: integer
+                        p50LatencyMs:
+                          format: int64
+                          type: integer
+                        p95LatencyMs:
+                          format: int64
+                          type: integer
+                        p99LatencyMs:
+                          format: int64
+                          type: integer
+                        recordProcessorStatus:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        totalBytesReceived:
+                          format: int64
+                          type: integer
+                        totalMessagesReceived:
+                          format: int64
+                          type: integer
+                      type: object
+                    type: object
+                  producerStats:
+                    description: A ProducerBenchResultStats represents the benchmarking
                       results obtained by the agent
                     properties:
                       averageLatencyMs:
@@ -196,6 +225,17 @@ spec:
                         format: int64
                         type: integer
                       transactionsCommitted:
+                        format: int64
+                        type: integer
+                    type: object
+                  roundTripStats:
+                    description: A RoundTripBenchResultStats represents the benchmarking
+                      results obtained by the agent
+                    properties:
+                      totalReceived:
+                        format: int64
+                        type: integer
+                      totalUniqueSent:
                         format: int64
                         type: integer
                     type: object
