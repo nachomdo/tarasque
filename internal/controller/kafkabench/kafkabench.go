@@ -36,8 +36,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/provider-template/apis/tarasque/v1alpha1"
-	apisv1alpha1 "github.com/crossplane/provider-template/apis/v1alpha1"
+	"github.com/nachomdo/tarasque/apis/tarasque/v1alpha1"
+	apisv1alpha1 "github.com/nachomdo/tarasque/apis/v1alpha1"
 )
 
 const (
@@ -50,7 +50,6 @@ const (
 	errGetCreds       = "cannot get credentials"
 
 	errNewClient = "cannot create new Service"
-	errNewTask   = "cannot create new Task"
 )
 
 // A NoOpService does nothing.
@@ -84,15 +83,16 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 		Complete(r)
 }
 
+// WorkerTaskSpec is part of the WorkerTask and contains the specification for the worker
 type WorkerTaskSpec struct {
 	v1alpha1.KafkaBenchSpec
 	StartMs int64 `json:"startMs,omitempty"`
 }
 
-// KafkaTopics are part of the desired state fields
+// WorkerTask represents the parameters necessary to create a new worker task in Trogdor Agent
 type WorkerTask struct {
-	TaskId   string         `json:"taskId,omitempty"`
-	WorkerId int64          `json:"workerId,omitempty"`
+	TaskID   string         `json:"taskId,omitempty"`
+	WorkerID int64          `json:"workerId,omitempty"`
 	Spec     WorkerTaskSpec `json:"spec,omitempty"`
 }
 
@@ -159,7 +159,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		// Return false when the external resource does not exist. This lets
 		// the managed resource reconciler know that it needs to call Create to
 		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: cr.Status.AtProvider.TaskId != "",
+		ResourceExists: cr.Status.AtProvider.TaskID != "",
 
 		// Return false when the external resource exists, but it not up to date
 		// with the desired managed resource state. This lets the managed
@@ -184,14 +184,14 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, err
 	}
 	cr.Status.AtProvider.TaskStatus = "CREATED"
-	cr.Status.AtProvider.TaskId = workerTask.TaskId
-	cr.Status.AtProvider.WorkerId = workerTask.WorkerId
+	cr.Status.AtProvider.TaskID = workerTask.TaskID
+	cr.Status.AtProvider.WorkerID = workerTask.WorkerID
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
 		// external resource. These will be stored as the connection secret.
 		ConnectionDetails: managed.ConnectionDetails{
-			"taskId":    []byte(workerTask.TaskId),
+			"taskId":    []byte(workerTask.TaskID),
 			"name":      []byte(cr.Name),
 			"namespace": []byte(cr.Namespace),
 		},
@@ -205,8 +205,8 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	fmt.Printf("Updating: %+v \n", cr)
 
-	workerId := strconv.FormatInt(cr.Status.AtProvider.WorkerId, 10)
-	statusResponse, err := c.service.CollectWorkerTaskResult(workerId)
+	workerID := strconv.FormatInt(cr.Status.AtProvider.WorkerID, 10)
+	statusResponse, err := c.service.CollectWorkerTaskResult(workerID)
 	if err != nil {
 		return managed.ExternalUpdate{}, err
 	}
@@ -231,7 +231,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 			return managed.ExternalUpdate{}, err
 		}
 	}
-	fmt.Printf("Got from collect %v for workerId %s\n", statusResponse, workerId)
+	fmt.Printf("Got from collect %v for workerId %s\n", statusResponse, workerID)
 	cr.SetConditions(xpv1.Available())
 	return managed.ExternalUpdate{
 		// Optionally return any details that may be required to connect to the
@@ -248,11 +248,11 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 
 	fmt.Printf("Deleting: %+v", cr)
 	cr.SetConditions(xpv1.Deleting())
-	workerId := strconv.FormatInt(cr.Status.AtProvider.WorkerId, 10)
-	if err := c.service.DeleteWorkerTask(workerId); err != nil {
+	workerID := strconv.FormatInt(cr.Status.AtProvider.WorkerID, 10)
+	if err := c.service.DeleteWorkerTask(workerID); err != nil {
 		return err
 	}
 
-	cr.Status.AtProvider.TaskId = ""
+	cr.Status.AtProvider.TaskID = ""
 	return nil
 }

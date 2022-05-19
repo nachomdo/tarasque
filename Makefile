@@ -1,9 +1,9 @@
 # ====================================================================================
 # Setup Project
-PROJECT_NAME := provider-template
-PROJECT_REPO := github.com/crossplane/$(PROJECT_NAME)
+PROJECT_NAME := tarasque
+PROJECT_REPO := github.com/nachomdo/$(PROJECT_NAME)
 
-PLATFORMS ?= linux_amd64 linux_arm64
+PLATFORMS ?= linux_amd64
 -include build/makelib/common.mk
 
 # Setup Output
@@ -21,11 +21,23 @@ GO111MODULE = on
 # Setup Kubernetes tools
 -include build/makelib/k8s_tools.mk
 
+# Setup Helm
+USE_HELM3 = true
+HELM_BASE_URL = https://charts.upbound.io
+HELM_CHART_LINT_STRICT = false
+HELM_S3_BUCKET = nacho-ccloud-test
+HELM_CHARTS = tarasque
+HELM_CHART_LINT_ARGS_tarasque = --set nameOverride='',imagePullSecrets=''
+-include build/makelib/helm.mk
+
 # Setup Images
-DOCKER_REGISTRY ?= crossplane
+DOCKER_REGISTRY ?= nachomdo
 IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
 -include build/makelib/image.mk
 
+#Local deployment 
+-include build/makelib/deploy.mk
+-include build/makelib/local.mk
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
@@ -75,9 +87,9 @@ dev: $(KIND) $(KUBECTL)
 #	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
 	@$(INFO) Installing Crossplane CRDs
 	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane//cluster?ref=master
-	@$(INFO) Installing Provider SQL CRDs
+	@$(INFO) Installing Provider Tarasque CRDs
 	@$(KUBECTL) apply -R -f package/crds
-	@$(INFO) Starting Provider SQL controllers
+	@$(INFO) Starting Provider Tarasque controllers
 	@$(GO) run cmd/provider/main.go --debug
 
 dev-clean: $(KIND) $(KUBECTL)

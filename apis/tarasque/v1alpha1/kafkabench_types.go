@@ -28,8 +28,8 @@ import (
 // KafkaBenchObservation are the observable fields of a KafkaBench.
 type KafkaBenchObservation struct {
 	TaskStatus     string                              `json:"taskStatus,omitempty"`
-	TaskId         string                              `json:"taskId,omitempty"`
-	WorkerId       int64                               `json:"workerId,omitempty"`
+	TaskID         string                              `json:"taskId,omitempty"`
+	WorkerID       int64                               `json:"workerId,omitempty"`
 	ProducerStats  ProducerBenchResultStats            `json:"producerStats,omitempty"`
 	ConsumerStats  map[string]ConsumerBenchResultStats `json:"consumerStats,omitempty"`
 	RoundTripStats RoundTripBenchResultStats           `json:"roundTripStats,omitempty"`

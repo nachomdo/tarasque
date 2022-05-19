@@ -10,17 +10,18 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/crossplane/provider-template/apis/tarasque/v1alpha1"
 	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
+
+	"github.com/nachomdo/tarasque/apis/tarasque/v1alpha1"
 )
 
 const (
-	defaultAgentServiceUrl = "https://tarasque-agent.tarasque.svc.cluster.local"
+	defaultAgentServiceURL = "https://tarasque-agent.tarasque.svc.cluster.local"
 )
 
 var (
-	agentServiceUrl = getEnvOrDefault("SERVICE_URL", defaultAgentServiceUrl)
+	agentServiceURL = getEnvOrDefault("SERVICE_URL", defaultAgentServiceURL)
 	sanitizeFields  = []string{"providerConfigRef", "forProvider", "deletionPolicy"}
 )
 
@@ -49,37 +50,39 @@ func sanitizeWorkerTask(wt *WorkerTask) (map[string]interface{}, error) {
 
 	if wt.Spec.Class == consumerWorkload {
 		keys := make([]string, 0, len(wt.Spec.ActiveTopics))
-		for k, _ := range wt.Spec.ActiveTopics {
+		for k := range wt.Spec.ActiveTopics {
 			if k != "" {
 				keys = append(keys, k)
 			}
 		}
 		wtSpec["activeTopics"] = keys
 	}
-	wtMap["workerId"] = wt.WorkerId
+	wtMap["workerId"] = wt.WorkerID
 	return wtMap, nil
 }
 
-//A service to communicate with the Trogdor Agent REST API
+// TrogdorAgentService provides access to the Trogdor Agent REST API
 type TrogdorAgentService struct {
 	client *resty.Client
 }
 
+// AgentStatusWorkers represents the worker status as returned by Trogdor Agent API
 type AgentStatusWorkers struct {
 	State     string      `json:"state,omitempty"`
-	TaskId    string      `json:"taskId,omitempty"`
+	TaskID    string      `json:"taskId,omitempty"`
 	StartedMs int64       `json:"startedMs,omitempty"`
 	DoneMs    int64       `json:"doneMs,omitempty"`
 	Status    interface{} `json:"status,omitempty"`
 	Error     string      `json:"error,omitempty"`
 }
 
+// AgentStatusResponse encapsulates the response from the Trogdor Agent status endpoint
 type AgentStatusResponse struct {
 	ServerStartMs int64                         `json:"serverStartMs,omitempty"`
 	Workers       map[string]AgentStatusWorkers `json:"workers,omitempty"`
 }
 
-//Create a new instance of Trogdor Service
+// NewTrogdorService returns a new instance of Trogdor Service
 func NewTrogdorService() *TrogdorAgentService {
 	return &TrogdorAgentService{
 		client: resty.New(),
@@ -92,8 +95,9 @@ func newTrogdorServiceWithRestClient(httpClient *resty.Client) *TrogdorAgentServ
 	}
 }
 
+// CreateWorkerTask initiates a new worker task on Trogdor agents
 func (tas *TrogdorAgentService) CreateWorkerTask(spec v1alpha1.KafkaBenchSpec) (*WorkerTask, error) {
-	payload := WorkerTask{Spec: WorkerTaskSpec{spec, time.Now().UnixMilli()}, WorkerId: rand.Int63(), TaskId: uuid.New().String()}
+	payload := WorkerTask{Spec: WorkerTaskSpec{spec, time.Now().UnixMilli()}, WorkerID: rand.Int63(), TaskID: uuid.New().String()}
 
 	body, err := sanitizeWorkerTask(&payload)
 	if err != nil {
@@ -103,7 +107,7 @@ func (tas *TrogdorAgentService) CreateWorkerTask(spec v1alpha1.KafkaBenchSpec) (
 	resp, err := tas.client.NewRequest().
 		SetHeader("Accept", "application/json").
 		SetHeader("Content-Type", "application/json").
-		SetBody(body).Post(agentServiceUrl + "/agent/worker/create")
+		SetBody(body).Post(agentServiceURL + "/agent/worker/create")
 
 	fmt.Printf("Response: %v \n", string(resp.Body()))
 	if resp.StatusCode() != http.StatusOK || err != nil {
@@ -112,10 +116,11 @@ func (tas *TrogdorAgentService) CreateWorkerTask(spec v1alpha1.KafkaBenchSpec) (
 	return &payload, nil
 }
 
-func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerId string) (*AgentStatusWorkers, error) {
+// CollectWorkerTaskResult checks the status of a given workerID in Trogdor agents
+func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerID string) (*AgentStatusWorkers, error) {
 	resp, err := tas.client.NewRequest().
 		SetHeader("Accept", "application/json").
-		Get(agentServiceUrl + "/agent/status")
+		Get(agentServiceURL + "/agent/status")
 
 	if resp.StatusCode() != http.StatusOK || err != nil {
 		return nil, err
@@ -125,7 +130,7 @@ func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerId string) (*Agent
 		return nil, err
 	}
 
-	workerStatus := agentStatusResponse.Workers[workerId]
+	workerStatus := agentStatusResponse.Workers[workerID]
 	if workerStatus.Error != "" {
 		return nil, errors.New(workerStatus.Error)
 	}
@@ -133,10 +138,11 @@ func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerId string) (*Agent
 	return &workerStatus, nil
 }
 
-func (tas *TrogdorAgentService) DeleteWorkerTask(workerId string) error {
+// DeleteWorkerTask removes a given worker in Trogdor agents
+func (tas *TrogdorAgentService) DeleteWorkerTask(workerID string) error {
 	resp, err := tas.client.NewRequest().
 		SetHeader("Accept", "application/json").
-		Delete(fmt.Sprintf("%s/agent/worker?workerId=%s", agentServiceUrl, workerId))
+		Delete(fmt.Sprintf("%s/agent/worker?workerId=%s", agentServiceURL, workerID))
 
 	if resp.StatusCode() != http.StatusOK || err != nil {
 		return err

@@ -1,4 +1,4 @@
-module github.com/crossplane/provider-template
+module github.com/nachomdo/tarasque
 
 go 1.16
 

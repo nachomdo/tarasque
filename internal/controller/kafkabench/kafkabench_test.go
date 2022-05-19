@@ -30,9 +30,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/provider-template/apis/tarasque/v1alpha1"
 	"github.com/jarcoal/httpmock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/nachomdo/tarasque/apis/tarasque/v1alpha1"
 )
 
 // Unlike many Kubernetes projects Crossplane does not use third party testing
@@ -133,14 +134,14 @@ func TestCreate(t *testing.T) {
 	client := newTrogdorServiceWithRestClient(httpClient)
 	httpmock.ActivateNonDefault(httpClient.GetClient())
 	defer httpmock.DeactivateAndReset()
-	httpmock.RegisterResponder("POST", agentServiceUrl+"/agent/worker/create",
+	httpmock.RegisterResponder("POST", agentServiceURL+"/agent/worker/create",
 		func(req *http.Request) (*http.Response, error) {
 			body, _ := ioutil.ReadAll(req.Body)
 			wt := WorkerTask{}
 			json.Unmarshal(body, &wt)
 			fmt.Printf("%v", wt)
 
-			connDetails["taskId"] = []byte(wt.TaskId)
+			connDetails["taskId"] = []byte(wt.TaskID)
 			connDetails["name"] = []byte("newBenchmark")
 			connDetails["namespace"] = []byte("test")
 
@@ -223,14 +224,14 @@ func TestUpdate(t *testing.T) {
 	client := newTrogdorServiceWithRestClient(httpClient)
 	httpmock.ActivateNonDefault(httpClient.GetClient())
 	defer httpmock.DeactivateAndReset()
-	httpmock.RegisterResponder("GET", agentServiceUrl+"/agent/status",
+	httpmock.RegisterResponder("GET", agentServiceURL+"/agent/status",
 		func(req *http.Request) (*http.Response, error) {
 			statusResponse := AgentStatusResponse{
 				ServerStartMs: 1000,
 				Workers: map[string]AgentStatusWorkers{
 					"1234": {
 						State:     "DONE",
-						TaskId:    "1",
+						TaskID:    "1",
 						StartedMs: 1649460862398,
 						DoneMs:    1649460862431,
 						Status:    nil,
@@ -238,7 +239,7 @@ func TestUpdate(t *testing.T) {
 					},
 					"1111": {
 						State:     "DONE",
-						TaskId:    "2",
+						TaskID:    "2",
 						StartedMs: 1649460862398,
 						DoneMs:    1649460862431,
 						Status:    "Creating 5 topic(s)",
@@ -246,7 +247,7 @@ func TestUpdate(t *testing.T) {
 					},
 					"9999": {
 						State:     "DONE",
-						TaskId:    "3",
+						TaskID:    "3",
 						StartedMs: 1649460862398,
 						DoneMs:    1649460862431,
 						Status: map[string]interface{}{
@@ -260,7 +261,7 @@ func TestUpdate(t *testing.T) {
 					},
 					"2222": {
 						State:     "DONE",
-						TaskId:    "4",
+						TaskID:    "4",
 						StartedMs: 1649460862398,
 						DoneMs:    1649460862431,
 						Status: map[string]interface{}{
@@ -314,8 +315,8 @@ func TestUpdate(t *testing.T) {
 					},
 					Status: v1alpha1.KafkaBenchStatus{
 						AtProvider: v1alpha1.KafkaBenchObservation{
-							WorkerId:   9999,
-							TaskId:     "3",
+							WorkerID:   9999,
+							TaskID:     "3",
 							TaskStatus: "CREATED",
 						},
 					},
@@ -350,8 +351,8 @@ func TestUpdate(t *testing.T) {
 					},
 					Status: v1alpha1.KafkaBenchStatus{
 						AtProvider: v1alpha1.KafkaBenchObservation{
-							WorkerId:   2222,
-							TaskId:     "4",
+							WorkerID:   2222,
+							TaskID:     "4",
 							TaskStatus: "CREATED",
 						},
 					},

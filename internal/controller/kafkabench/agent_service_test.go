@@ -16,14 +16,14 @@ func TestCollectWorkerTaskResult(t *testing.T) {
 	client := newTrogdorServiceWithRestClient(httpClient)
 	httpmock.ActivateNonDefault(httpClient.GetClient())
 	defer httpmock.DeactivateAndReset()
-	httpmock.RegisterResponder("GET", agentServiceUrl+"/agent/status",
+	httpmock.RegisterResponder("GET", agentServiceURL+"/agent/status",
 		func(req *http.Request) (*http.Response, error) {
 			statusResponse := AgentStatusResponse{
 				ServerStartMs: 1000,
 				Workers: map[string]AgentStatusWorkers{
 					"task-with-error-no-status": {
 						State:     "DONE",
-						TaskId:    "1",
+						TaskID:    "1",
 						StartedMs: 1649460862398,
 						DoneMs:    1649460862431,
 						Status:    nil,
@@ -31,7 +31,7 @@ func TestCollectWorkerTaskResult(t *testing.T) {
 					},
 					"task-with-status-and-error": {
 						State:     "DONE",
-						TaskId:    "2",
+						TaskID:    "2",
 						StartedMs: 1649460862398,
 						DoneMs:    1649460862431,
 						Status:    "Creating 5 topic(s)",
@@ -39,7 +39,7 @@ func TestCollectWorkerTaskResult(t *testing.T) {
 					},
 					"task-with-results": {
 						State:     "DONE",
-						TaskId:    "3",
+						TaskID:    "3",
 						StartedMs: 1649460862398,
 						DoneMs:    1649460862431,
 						Status: map[string]interface{}{
@@ -65,7 +65,7 @@ func TestCollectWorkerTaskResult(t *testing.T) {
 		"task-with-results": {
 			status: &AgentStatusWorkers{
 				State:     "DONE",
-				TaskId:    "3",
+				TaskID:    "3",
 				StartedMs: 1649460862398,
 				DoneMs:    1649460862431,
 				Status: map[string]interface{}{
