@@ -22,7 +22,7 @@ func (mr *mockResolver) resolveHeadlessService() ([]string, error) {
 
 func TestCollectWorkerTaskResult(t *testing.T) {
 	httpClient := resty.New()
-	svcResolver := &mockResolver{[]string{agentServiceURL}, nil}
+	svcResolver := &mockResolver{[]string{defaultAgentServiceName}, nil}
 	client := newTrogdorServiceWithRestClient(httpClient, svcResolver)
 	httpmock.ActivateNonDefault(httpClient.GetClient())
 	defer httpmock.DeactivateAndReset()

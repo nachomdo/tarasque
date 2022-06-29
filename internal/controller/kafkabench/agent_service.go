@@ -44,6 +44,10 @@ func (*kubeResolver) resolveHeadlessService() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if len(addrs) == 0 {
+		return nil, errors.New("not available workers registered in the Agent Service")
+	}
 	result := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		result = append(result, net.JoinHostPort(strings.TrimSuffix(addr.Target, "."), agentServicePort))
@@ -127,6 +131,7 @@ func newTrogdorServiceWithRestClient(httpClient *resty.Client, svcResolver resol
 
 // CreateWorkerTask initiates a new worker task on Trogdor agents
 func (tas *TrogdorAgentService) CreateWorkerTask(spec v1alpha1.KafkaBenchSpec) (*WorkerTask, error) {
+	//nolint
 	payload := WorkerTask{Spec: WorkerTaskSpec{spec, time.Now().UnixMilli()}, WorkerID: rand.Int63(), TaskID: uuid.New().String()}
 
 	body, err := sanitizeWorkerTask(&payload)
@@ -170,7 +175,8 @@ func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerID string) (*Agent
 	if err != nil || len(addrs) == 0 {
 		return nil, errors.New("non resolvable address returned")
 	}
-	idx := rand.Int() % (len(addrs) - 1)
+	//nolint
+	idx := rand.Int() % len(addrs)
 	resp, err := tas.client.NewRequest().
 		SetHeader("Accept", "application/json").
 		Get(fmt.Sprintf("http://%s/agent/status", addrs[idx]))
