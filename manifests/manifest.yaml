@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tarasque
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: tarasque
+  name: tarasque
+  namespace: tarasque
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tarasque
+  template:
+    metadata:
+      labels:
+        app: tarasque
+    spec:
+      containers:
+      - image: nachomdo/trogdor:coordinator
+        name: trogdor
+        args:
+          - -n
+          - node0
+          - -c
+          - /opt/trogdor/config/trogdor.conf
+        ports:
+          - containerPort: 8889
+            name: coord-port
+        readinessProbe:
+          httpGet:
+            path: /coordinator/status
+            port: coord-port
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /coordinator/status
+            port: coord-port
+          periodSeconds: 30
+          failureThreshold: 5
+        resources:
+          limits:
+            memory: 2048Mi
+          requests:
+            cpu: 100m
+            memory: 512Mi
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: tarasque-agent
+  namespace: tarasque
+  labels:
+    app: tarasque-agent
+spec:
+  selector:
+    matchLabels:
+      app: tarasque-agent
+  template:
+    metadata:
+      labels:
+        app: tarasque-agent
+    spec:
+      containers:
+      - name: trogdor
+        image: nachomdo/trogdor:agent
+        args:
+          - -n
+          - node0
+          - -c
+          - /opt/trogdor/config/trogdor.conf
+        ports:
+          - containerPort: 8888
+            name: agent-port
+        readinessProbe:
+          httpGet:
+            path: /agent/status
+            port: agent-port
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /agent/status
+            port: agent-port
+          periodSeconds: 30
+          failureThreshold: 5
+        resources:
+          limits:
+            memory: 2048Mi
+          requests:
+            cpu: 100m
+            memory: 512Mi
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: tarasque-agent
+  name: tarasque-agent
+  namespace: tarasque
+spec:
+  clusterIP: None
+  ports:
+  - name: "agent-port"
+    port: 8888
+    protocol: TCP
+    targetPort: 8888
+  selector:
+    app: tarasque-agent
+  type: ClusterIP

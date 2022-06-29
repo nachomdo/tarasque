@@ -20,6 +20,8 @@ import (
 	"os"
 	"path/filepath"
 
+  _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+
 	"gopkg.in/alecthomas/kingpin.v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"

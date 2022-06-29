@@ -131,7 +131,8 @@ func TestCreate(t *testing.T) {
 	connDetails := managed.ConnectionDetails{}
 
 	httpClient := resty.New()
-	client := newTrogdorServiceWithRestClient(httpClient)
+	svcResolver := &mockResolver{[]string{agentServiceURL}, nil}
+	client := newTrogdorServiceWithRestClient(httpClient, svcResolver)
 	httpmock.ActivateNonDefault(httpClient.GetClient())
 	defer httpmock.DeactivateAndReset()
 	httpmock.RegisterResponder("POST", agentServiceURL+"/agent/worker/create",
@@ -221,7 +222,8 @@ func TestUpdate(t *testing.T) {
 	connDetails := managed.ConnectionDetails{}
 
 	httpClient := resty.New()
-	client := newTrogdorServiceWithRestClient(httpClient)
+	svcResolver := &mockResolver{[]string{agentServiceURL}, nil}
+	client := newTrogdorServiceWithRestClient(httpClient, svcResolver)
 	httpmock.ActivateNonDefault(httpClient.GetClient())
 	defer httpmock.DeactivateAndReset()
 	httpmock.RegisterResponder("GET", agentServiceURL+"/agent/status",

@@ -11,11 +11,22 @@ import (
 	"github.com/jarcoal/httpmock"
 )
 
+type mockResolver struct {
+	result []string
+	err    error
+}
+
+func (mr *mockResolver) resolveHeadlessService() ([]string, error) {
+	return mr.result, mr.err
+}
+
 func TestCollectWorkerTaskResult(t *testing.T) {
 	httpClient := resty.New()
-	client := newTrogdorServiceWithRestClient(httpClient)
+	svcResolver := &mockResolver{[]string{agentServiceURL}, nil}
+	client := newTrogdorServiceWithRestClient(httpClient, svcResolver)
 	httpmock.ActivateNonDefault(httpClient.GetClient())
 	defer httpmock.DeactivateAndReset()
+
 	httpmock.RegisterResponder("GET", agentServiceURL+"/agent/status",
 		func(req *http.Request) (*http.Response, error) {
 			statusResponse := AgentStatusResponse{

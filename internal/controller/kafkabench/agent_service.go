@@ -1,29 +1,56 @@
 package kafkabench
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/nachomdo/tarasque/apis/tarasque/v1alpha1"
 )
 
 const (
-	defaultAgentServiceURL = "https://tarasque-agent.tarasque.svc.cluster.local"
+	defaultAgentServiceName = "tarasque-agent.tarasque.svc.cluster.local"
+	defaultAgentServiceURL  = "http://tarasque-agent.tarasque.svc.cluster.local"
+	defaultAgentServicePort = "8888"
 )
 
 var (
-	agentServiceURL = getEnvOrDefault("SERVICE_URL", defaultAgentServiceURL)
-	sanitizeFields  = []string{"providerConfigRef", "forProvider", "deletionPolicy"}
+	agentServiceURL  = getEnvOrDefault("SERVICE_URL", defaultAgentServiceURL)
+	agentServicePort = getEnvOrDefault("SERVICE_PORT", defaultAgentServicePort)
+	sanitizeFields   = []string{"providerConfigRef", "forProvider", "deletionPolicy"}
 )
+
+type resolver interface {
+	resolveHeadlessService() ([]string, error)
+}
+
+type kubeResolver struct{}
+
+func (*kubeResolver) resolveHeadlessService() ([]string, error) {
+	_, addrs, err := net.LookupSRV("", "", defaultAgentServiceName)
+
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, 0, len(addrs))
+	for _, addr := range addrs {
+		result = append(result, net.JoinHostPort(strings.TrimSuffix(addr.Target, "."), agentServicePort))
+	}
+
+	return result, nil
+}
 
 func getEnvOrDefault(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
@@ -63,7 +90,8 @@ func sanitizeWorkerTask(wt *WorkerTask) (map[string]interface{}, error) {
 
 // TrogdorAgentService provides access to the Trogdor Agent REST API
 type TrogdorAgentService struct {
-	client *resty.Client
+	client      *resty.Client
+	svcResolver resolver
 }
 
 // AgentStatusWorkers represents the worker status as returned by Trogdor Agent API
@@ -85,13 +113,15 @@ type AgentStatusResponse struct {
 // NewTrogdorService returns a new instance of Trogdor Service
 func NewTrogdorService() *TrogdorAgentService {
 	return &TrogdorAgentService{
-		client: resty.New(),
+		client:      resty.New(),
+		svcResolver: &kubeResolver{},
 	}
 }
 
-func newTrogdorServiceWithRestClient(httpClient *resty.Client) *TrogdorAgentService {
+func newTrogdorServiceWithRestClient(httpClient *resty.Client, svcResolver resolver) *TrogdorAgentService {
 	return &TrogdorAgentService{
-		client: httpClient,
+		client:      httpClient,
+		svcResolver: svcResolver,
 	}
 }
 
@@ -104,23 +134,46 @@ func (tas *TrogdorAgentService) CreateWorkerTask(spec v1alpha1.KafkaBenchSpec) (
 		return nil, err
 	}
 	fmt.Printf("Creating: %+v \n", body)
-	resp, err := tas.client.NewRequest().
-		SetHeader("Accept", "application/json").
-		SetHeader("Content-Type", "application/json").
-		SetBody(body).Post(agentServiceURL + "/agent/worker/create")
-
-	fmt.Printf("Response: %v \n", string(resp.Body()))
-	if resp.StatusCode() != http.StatusOK || err != nil {
+	addrs, err := tas.svcResolver.resolveHeadlessService()
+	if err != nil {
 		return nil, err
+	}
+	g, _ := errgroup.WithContext(context.Background())
+
+	for _, addr := range addrs {
+		endpoint := addr
+		g.Go(func() error {
+			resp, err := tas.client.NewRequest().
+				SetHeader("Accept", "application/json").
+				SetHeader("Content-Type", "application/json").
+				SetBody(body).Post(fmt.Sprintf("http://%s/agent/worker/create", endpoint))
+
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Response: %v \n", string(resp.Body()))
+			if resp.StatusCode() != http.StatusOK || err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return &payload, err
 	}
 	return &payload, nil
 }
 
 // CollectWorkerTaskResult checks the status of a given workerID in Trogdor agents
 func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerID string) (*AgentStatusWorkers, error) {
+	addrs, err := tas.svcResolver.resolveHeadlessService()
+	if err != nil || len(addrs) == 0 {
+		return nil, errors.New("non resolvable address returned")
+	}
+	idx := rand.Int() % (len(addrs) - 1)
 	resp, err := tas.client.NewRequest().
 		SetHeader("Accept", "application/json").
-		Get(agentServiceURL + "/agent/status")
+		Get(fmt.Sprintf("http://%s/agent/status", addrs[idx]))
 
 	if resp.StatusCode() != http.StatusOK || err != nil {
 		return nil, err
@@ -129,23 +182,27 @@ func (tas *TrogdorAgentService) CollectWorkerTaskResult(workerID string) (*Agent
 	if err := json.Unmarshal(resp.Body(), &agentStatusResponse); err != nil {
 		return nil, err
 	}
-
 	workerStatus := agentStatusResponse.Workers[workerID]
 	if workerStatus.Error != "" {
 		return nil, errors.New(workerStatus.Error)
 	}
-
 	return &workerStatus, nil
 }
 
 // DeleteWorkerTask removes a given worker in Trogdor agents
 func (tas *TrogdorAgentService) DeleteWorkerTask(workerID string) error {
-	resp, err := tas.client.NewRequest().
-		SetHeader("Accept", "application/json").
-		Delete(fmt.Sprintf("%s/agent/worker?workerId=%s", agentServiceURL, workerID))
+	addrs, err := tas.svcResolver.resolveHeadlessService()
+	if err != nil {
+		return errors.New("non resolvable address returned")
+	}
+	for _, addr := range addrs {
+		_, err = tas.client.NewRequest().
+			SetHeader("Accept", "application/json").
+			Delete(fmt.Sprintf("http://%s/agent/worker?workerId=%s", addr, workerID))
 
-	if resp.StatusCode() != http.StatusOK || err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

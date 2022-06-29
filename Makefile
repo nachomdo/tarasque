@@ -23,19 +23,19 @@ GO111MODULE = on
 
 # Setup Helm
 USE_HELM3 = true
-HELM_BASE_URL = https://charts.upbound.io
-HELM_CHART_LINT_STRICT = false
-HELM_S3_BUCKET = nacho-ccloud-test
-HELM_CHARTS = tarasque
-HELM_CHART_LINT_ARGS_tarasque = --set nameOverride='',imagePullSecrets=''
--include build/makelib/helm.mk
+# HELM_BASE_URL = https://charts.upbound.io
+# HELM_CHART_LINT_STRICT = false
+# HELM_S3_BUCKET = nacho-ccloud-test
+# HELM_CHARTS = tarasque
+# HELM_CHART_LINT_ARGS_tarasque = --set nameOverride='',imagePullSecrets=''
+# -include build/makelib/helm.mk
 
 # Setup Images
 DOCKER_REGISTRY ?= nachomdo
 IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
 -include build/makelib/image.mk
 
-#Local deployment 
+#Local deployment
 -include build/makelib/deploy.mk
 -include build/makelib/local.mk
 fallthrough: submodules
@@ -92,11 +92,43 @@ dev: $(KIND) $(KUBECTL)
 	@$(INFO) Starting Provider Tarasque controllers
 	@$(GO) run cmd/provider/main.go --debug
 
+install: $(KUBECTL) $(HELM3)
+	@$(INFO) Deploying Tarasque to Kubernetes cluster
+	@$(INFO) Installing Crossplane
+	@$(HELM3) repo add crossplane-stable https://charts.crossplane.io/stable
+	@$(HELM3) repo update
+	@$(HELM3) upgrade --install crossplane --create-namespace --namespace crossplane-system crossplane-stable/crossplane
+	@$(INFO) Installing Crossplane CRDs
+	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane/cluster?ref=master
+	@$(INFO) Installing Provider Tarasque CRDs
+	@$(KUBECTL) apply -R -f package/crds
+	@$(KUBECTL) crossplane install provider nachomdo/provider-tarasque-controller:v0.7
+	@$(INFO) Deploying Trogdor Agents 
+	@$(KUBECTL) apply -f manifests/manifest.yaml
+	@$(KUBECTL) apply -f examples/provider/config.yaml
+uninstall: $(KUBECTL) $(HELM3)
+	@$(INFO) Removing Tarasque from Kubernetes cluster 
+	@$(KUBECTL) delete -f examples/provider/config.yaml
+	@$(KUBECTL) delete -f manifests/manifest.yaml 
+	@$(KUBECTL) delete -R -f package/crds 
+	@$(KUBECTL) delete providers nachomdo-provider-tarasque-controller
+	@$(HEML3) uninstall crossplane --namespace crossplane-system 
+
 dev-clean: $(KIND) $(KUBECTL)
 	@$(INFO) Deleting kind cluster
 	@$(KIND) delete cluster --name=$(PROJECT_NAME)-dev
 
-.PHONY: submodules fallthrough test-integration run crds.clean dev dev-clean
+deploy: build
+	@$(INFO) Deploying to active cluster
+	@docker tag build-533b5664/provider-template-controller-amd64 nachomdo/tarasque-controller:v0.7
+	@docker push nachomdo/tarasque-controller:v0.7
+	@rm -rf package/*.xpkg
+	@$(KUBECTL) crossplane build provider -f package/ --name tarasque
+	@$(KUBECTL) crossplane push provider nachomdo/provider-tarasque-controller:v0.7 -f package/tarasque.xpkg
+	@$(KUBECTL) crossplane update provider nachomdo-provider-tarasque-controller v0.7
+	@$(KUBECTL) delete pod --force -l pkg.crossplane.io/provider=tarasque -n crossplane-system
+
+.PHONY: submodules fallthrough test-integration run crds.clean dev dev-clean deploy
 
 # ====================================================================================
 # Special Targets
