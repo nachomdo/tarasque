@@ -10,4 +10,4 @@ metadata:
 
 spec:
   controller:
-    image: nachomdo/tarasque-controller:v0.7
+    image: nachomdo/tarasque-controller:v0.8

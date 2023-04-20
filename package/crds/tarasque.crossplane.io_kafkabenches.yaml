@@ -53,6 +53,8 @@ spec:
           spec:
             description: A KafkaBenchSpec defines the desired state of a KafkaBench.
             properties:
+              action:
+                type: string
               activeTopics:
                 additionalProperties:
                   description: KafkaTopics are part of the desired state fields
@@ -110,6 +112,9 @@ spec:
               maxMessages:
                 format: int64
                 type: integer
+              numThreads:
+                format: int32
+                type: integer
               producerConf:
                 additionalProperties:
                   type: string
@@ -140,6 +145,9 @@ spec:
                 required:
                 - name
                 type: object
+              targetConnectionsPerSec:
+                format: int32
+                type: integer
               targetMessagesPerSec:
                 format: int32
                 type: integer

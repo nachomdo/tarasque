@@ -43,39 +43,42 @@ type KafkaTopics struct {
 
 // A KafkaBenchSpec defines the desired state of a KafkaBench.
 type KafkaBenchSpec struct {
-	xpv1.ResourceSpec    `json:",inline"`
-	Class                string                 `json:"class,omitempty"`
-	DurationMs           int64                  `json:"durationMs,omitempty"`
-	ProducerNode         string                 `json:"producerNode,omitempty"`
-	ConsumerNode         string                 `json:"consumerNode,omitempty"`
-	ClientNode           string                 `json:"clientNode,omitempty"`
-	ConsumerGroup        string                 `json:"consumerGroup,omitempty"`
-	ThreadsPerWorker     int32                  `json:"threadsPerWorker,omitempty"`
-	BootstrapServers     string                 `json:"bootstrapServers,omitempty"`
-	TargetMessagesPerSec int32                  `json:"targetMessagesPerSec,omitempty"`
-	MaxMessages          int64                  `json:"maxMessages,omitempty"`
-	ActiveTopics         map[string]KafkaTopics `json:"activeTopics,omitempty"`
-	InactiveTopics       map[string]KafkaTopics `json:"inactiveTopics,omitempty"`
-	ProducerConf         map[string]string      `json:"producerConf,omitempty"`
-	ConsumerConf         map[string]string      `json:"consumerConf,omitempty"`
-	CommonClientConf     map[string]string      `json:"commonClientConf,omitempty"`
-	AdminClientConf      map[string]string      `json:"adminClientConf,omitempty"`
+	xpv1.ResourceSpec       `json:",inline"`
+	Class                   string                 `json:"class,omitempty"`
+	DurationMs              int64                  `json:"durationMs,omitempty"`
+	ProducerNode            string                 `json:"producerNode,omitempty"`
+	ConsumerNode            string                 `json:"consumerNode,omitempty"`
+	ClientNode              string                 `json:"clientNode,omitempty"`
+	ConsumerGroup           string                 `json:"consumerGroup,omitempty"`
+	ThreadsPerWorker        int32                  `json:"threadsPerWorker,omitempty"`
+	BootstrapServers        string                 `json:"bootstrapServers,omitempty"`
+	TargetMessagesPerSec    int32                  `json:"targetMessagesPerSec,omitempty"`
+	MaxMessages             int64                  `json:"maxMessages,omitempty"`
+	ActiveTopics            map[string]KafkaTopics `json:"activeTopics,omitempty"`
+	InactiveTopics          map[string]KafkaTopics `json:"inactiveTopics,omitempty"`
+	ProducerConf            map[string]string      `json:"producerConf,omitempty"`
+	ConsumerConf            map[string]string      `json:"consumerConf,omitempty"`
+	CommonClientConf        map[string]string      `json:"commonClientConf,omitempty"`
+	AdminClientConf         map[string]string      `json:"adminClientConf,omitempty"`
+	TargetConnectionsPerSec int32                  `json:"targetConnectionsPerSec,omitempty"`
+	NumThreads              int32                  `json:"numThreads,omitempty"`
+	Action                  string                 `json:"action,omitempty"`
 }
 
 // A ProducerBenchResultStats represents the benchmarking results obtained by the agent
 type ProducerBenchResultStats struct {
-	TotalSent             int64   `json:"totalSent,omitempty"`
-	AverageLatencyMs      float64 `json:"averageLatencyMs,omitempty"`
-	P50LatencyMs          int64   `json:"p50LatencyMs,omitempty"`
-	P95LatencyMs          int64   `json:"p95LatencyMs,omitempty"`
-	P99LatencyMs          int64   `json:"p99LatencyMs,omitempty"`
-	TransactionsCommitted int64   `json:"transactionsCommitted,omitempty"`
+	TotalSent             int64   `mapstructure:"totalSent" json:"totalSent,omitempty"`
+	AverageLatencyMs      float64 `mapstructure:"averageLatencyMs" json:"averageLatencyMs,omitempty"`
+	P50LatencyMs          int64   `mapstructure:"p50LatencyMs" json:"p50LatencyMs,omitempty"`
+	P95LatencyMs          int64   `mapstructure:"p95LatencyMs" json:"p95LatencyMs,omitempty"`
+	P99LatencyMs          int64   `mapstructure:"p99LatencyMs" json:"p99LatencyMs,omitempty"`
+	TransactionsCommitted int64   `mapstructure:"transactionsCommitted" json:"transactionsCommitted,omitempty"`
 }
 
 // A RoundTripBenchResultStats represents the benchmarking results obtained by the agent
 type RoundTripBenchResultStats struct {
-	TotalUniqueSent int64 `json:"totalUniqueSent,omitempty"`
-	TotalReceived   int64 `json:"totalReceived,omitempty"`
+	TotalUniqueSent int64 `mapstructure:"totalUniqueSent" json:"totalUniqueSent,omitempty"`
+	TotalReceived   int64 `mapstructure:"totalReceived" json:"totalReceived,omitempty"`
 }
 
 // A ConsumerBenchResultStats represents the benchmarking results obtained by the agent

@@ -102,7 +102,7 @@ install: $(KUBECTL) $(HELM3)
 	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane/cluster?ref=master
 	@$(INFO) Installing Provider Tarasque CRDs
 	@$(KUBECTL) apply -R -f package/crds
-	@$(KUBECTL) crossplane install provider nachomdo/provider-tarasque-controller:v0.7
+	@$(KUBECTL) crossplane install provider nachomdo/provider-tarasque-controller:v0.8
 	@$(INFO) Deploying Trogdor Agents 
 	@$(KUBECTL) apply -f manifests/manifest.yaml
 	@$(KUBECTL) apply -f examples/provider/config.yaml
@@ -120,12 +120,12 @@ dev-clean: $(KIND) $(KUBECTL)
 
 deploy: build
 	@$(INFO) Deploying to active cluster
-	@docker tag build-533b5664/provider-template-controller-amd64 nachomdo/tarasque-controller:v0.7
-	@docker push nachomdo/tarasque-controller:v0.7
+	@docker tag build-533b5664/provider-template-controller-amd64 nachomdo/tarasque-controller:v0.8
+	@docker push nachomdo/tarasque-controller:v0.8
 	@rm -rf package/*.xpkg
 	@$(KUBECTL) crossplane build provider -f package/ --name tarasque
-	@$(KUBECTL) crossplane push provider nachomdo/provider-tarasque-controller:v0.7 -f package/tarasque.xpkg
-	@$(KUBECTL) crossplane update provider nachomdo-provider-tarasque-controller v0.7
+	@$(KUBECTL) crossplane push provider nachomdo/provider-tarasque-controller:v0.8 -f package/tarasque.xpkg
+	@$(KUBECTL) crossplane update provider nachomdo-provider-tarasque-controller v0.8
 	@$(KUBECTL) delete pod --force -l pkg.crossplane.io/provider=tarasque -n crossplane-system
 
 .PHONY: submodules fallthrough test-integration run crds.clean dev dev-clean deploy

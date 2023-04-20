@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -137,7 +137,7 @@ func TestCreate(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 	httpmock.RegisterResponder("POST", agentServiceURL+"/agent/worker/create",
 		func(req *http.Request) (*http.Response, error) {
-			body, _ := ioutil.ReadAll(req.Body)
+			body, _ := io.ReadAll(req.Body)
 			wt := WorkerTask{}
 			json.Unmarshal(body, &wt)
 			fmt.Printf("%v", wt)
